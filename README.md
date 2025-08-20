@@ -78,7 +78,7 @@ Ultimately supporting **operational decision-making** and **public transparency*
 ## Roadmap
 - [x] Initial Snowflake setup (database, warehouse, schemas)  
 - [x] Ingest raw TLC data  
-- [ ] Build staging models in dbt  
+- [x] Build staging models in dbt  
 - [ ] Add data quality tests  
 - [ ] Create fact & dimension models  
 - [ ] Define dbt exposures for BI  
