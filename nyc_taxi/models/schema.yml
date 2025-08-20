@@ -1,0 +1,116 @@
+version: 2
+
+models:
+  - name: fct_green_cleansed
+    columns:
+      - name: PULocationID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_taxi_zone_lookup')
+              field: location_id
+          - unique_id_in_range:
+              lookup_model: dim_taxi_zone_lookup
+              lookup_field: location_id
+
+      - name: DOLocationID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_taxi_zone_lookup')
+              field: location_id
+          - unique_id_in_range:
+              lookup_model: dim_taxi_zone_lookup
+              lookup_field: location_id
+
+      - name: VendorID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_vendor')
+              field: vendor_id
+          - unique_id_in_range:
+              lookup_model: dim_vendor
+              lookup_field: vendor_id
+
+      - name: RatecodeID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_rate_code')
+              field: rate_code_id
+          - unique_id_in_range:
+              lookup_model: dim_rate_code
+              lookup_field: rate_code_id
+
+      - name: payment_type_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_payment_type')
+              field: payment_type_id
+          - unique_id_in_range:
+              lookup_model: dim_payment_type
+              lookup_field: payment_type_id
+
+      - name: trip_type_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_trip_type')
+              field: trip_type_id
+          - unique_id_in_range:
+              lookup_model: dim_trip_type
+              lookup_field: trip_type_id
+
+  - name: fct_yellow_cleansed
+    columns:
+      - name: PULocationID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_taxi_zone_lookup')
+              field: location_id
+          - unique_id_in_range:
+              lookup_model: dim_taxi_zone_lookup
+              lookup_field: location_id
+
+      - name: DOLocationID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_taxi_zone_lookup')
+              field: location_id
+          - unique_id_in_range:
+              lookup_model: dim_taxi_zone_lookup
+              lookup_field: location_id
+
+      - name: VendorID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_vendor')
+              field: vendor_id
+          - unique_id_in_range:
+              lookup_model: dim_vendor
+              lookup_field: vendor_id
+
+      - name: RatecodeID
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_rate_code')
+              field: rate_code_id
+          - unique_id_in_range:
+              lookup_model: dim_rate_code
+              lookup_field: rate_code_id
+
+      - name: payment_type_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_payment_type')
+              field: payment_type_id
+          - unique_id_in_range:
+              lookup_model: dim_payment_type
+              lookup_field: payment_type_id

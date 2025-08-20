@@ -32,5 +32,9 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   nyc_taxi:
     +materialized: view
+    fct:
+      +materialized: table
+    dim:
+      +materialized: table
     src:
       +materialized: ephemeral

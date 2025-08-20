@@ -10,7 +10,7 @@
 
 WITH src_trip_type AS (
     SELECT
-        1 AS trip_type_code,
+        1 AS trip_type_id,
         'Street-hail' AS trip_type_desc
     UNION ALL
     SELECT
