@@ -99,3 +99,11 @@ SELECT
   *
 FROM filtered
 QUALIFY COUNT(*) OVER (PARTITION BY {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}) = 1
+ORDER BY pickup_datetime, dropoff_datetime
+{% if is_incremental() %}
+  AND NOT EXISTS (
+    SELECT 1
+    FROM {{ this }} AS existing
+    WHERE existing.yellow_id = {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}
+  )
+{% endif %}
