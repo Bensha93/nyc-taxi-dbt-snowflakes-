@@ -115,14 +115,16 @@ models:
         data_type: timestamp_ntz
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
+              column_name: pickup_datetime
               expression: "pickup_datetime <= current_timestamp"
 
       - name: dropoff_datetime
         data_type: timestamp_ntz
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
+              column_name: dropoff_datetime
               expression: "dropoff_datetime <= current_timestamp"
 
       - name: passenger_count
@@ -145,7 +147,7 @@ models:
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
-              max_value: 10000
+              max_value: 5000
 
       - name: tip_amount
         data_type: number(10,2)
@@ -178,7 +180,8 @@ models:
         data_type: number(10,2)
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
+          - expression_is_true:
+              column_name: total_amount
               expression: "ABS(total_amount - (fare_amount + tip_amount + tolls_amount + extra + mta_tax + improvement_surcharge + congestion_surcharge + cbd_congestion_fee)) < 0.01"
 
       - name: store_and_fwd_flag
