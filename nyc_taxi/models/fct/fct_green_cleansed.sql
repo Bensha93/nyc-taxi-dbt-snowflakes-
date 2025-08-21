@@ -55,6 +55,6 @@ WITH src AS (
 )
 
 SELECT
-  {{ dbt_utils.generate_surrogate_key(['VendorID', 'pickup_datetime', 'dropoff_datetime', 'passenger_count']) }} AS green_id,
+  {{ dbt_utils.generate_surrogate_key(['VendorID', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'fare_amount', 'trip_distance']) }} AS green_id,
   *
 FROM src

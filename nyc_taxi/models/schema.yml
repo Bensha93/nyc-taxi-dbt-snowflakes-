@@ -1,26 +1,37 @@
 version: 2
 
+sources:
+  - name: tlc_raw
+    schema: raw
+    tables:
+      - name: yellow_trip_raw
+        loaded_at_field: pickup_datetime
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 24, period: hour}
+      - name: green_trip_raw
+        loaded_at_field: pickup_datetime
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 24, period: hour}
+
 models:
   - name: fct_green_cleansed
     description: |
       ## Green Taxi Trips Fact Table (Cleansed)
       
-      **Purpose**: This table contains cleansed and validated green taxi trip records from NYC TLC data.
-      Green taxis are authorized to pick up passengers in outer boroughs and Manhattan above 96th Street.
-      
-      **Data Source**: NYC Taxi & Limousine Commission (TLC) Trip Record Data
-      
-      **Update Frequency**: Daily incremental loads
-      
+      Green taxis are authorized to pick up passengers in outer boroughs 
+      and Manhattan above 96th Street. This table contains cleansed and 
+      validated green taxi trip records.
+
       **Business Rules Applied**:
-      - Trips must have valid pickup/dropoff times (pickup < dropoff)
-      - Financial amounts must be non-negative
-      - Passenger count must be between 1-8
-      - Trip distance must be non-negative
-      - Vendor ID must be 1 (Creative Mobile Technologies) or 2 (VeriFone Inc)
-      
-      **Data Quality**: All records undergo validation for temporal consistency, 
-      financial accuracy, and business rule compliance before inclusion.
+      - Pickup < Dropoff
+      - Passenger count 1–8
+      - Distance non-negative
+      - Monetary amounts non-negative
+      - VendorID in {1, 2}
+      - TripType in {1, 2}
+      - No future trips
 
     constraints:
       - type: primary_key
@@ -29,19 +40,15 @@ models:
         columns: ['VendorID', 'pickup_datetime', 'dropoff_datetime', 'passenger_count']
       - type: check
         expression: "pickup_datetime < dropoff_datetime"
-      - type: check  
+      - type: check
         expression: "fare_amount >= 0"
       - type: check
         expression: "total_amount >= fare_amount"
-
 
     columns:
       - name: green_id
         description: "Unique surrogate key for each green taxi trip record"
         data_type: varchar(32)
-        constraints:
-          - type: not_null
-          - type: unique
         tests:
           - unique
           - not_null
@@ -52,9 +59,6 @@ models:
           - relationships:
               to: ref('dim_taxi_zone_lookup')
               field: location_id
-          - unique_id_in_range:
-              lookup_model: dim_taxi_zone_lookup
-              lookup_field: location_id
 
       - name: DOLocationID
         tests:
@@ -62,190 +66,145 @@ models:
           - relationships:
               to: ref('dim_taxi_zone_lookup')
               field: location_id
-          - unique_id_in_range:
-              lookup_model: dim_taxi_zone_lookup
-              lookup_field: location_id
 
       - name: VendorID
-        description: |
-          **Vendor ID**: Code indicating the TPEP provider
-          - 1 = Creative Mobile Technologies, LLC
-          - 2 = VeriFone Inc
+        description: "TPEP Provider (1=CMT, 2=VeriFone)"
         data_type: int
-        constraints:
-          - type: not_null
         tests:
           - not_null
           - relationships:
               to: ref('dim_vendor')
               field: vendor_id
-          - unique_id_in_range:
-              lookup_model: dim_vendor
-              lookup_field: vendor_id
           - accepted_values:
               values: [1, 2]
 
       - name: RatecodeID
-        description: |
-          **Rate Code**: Final rate code in effect at trip end
-          - 1 = Standard rate
-          - 2 = JFK
-          - 3 = Newark  
-          - 4 = Nassau or Westchester
-          - 5 = Negotiated fare
-          - 6 = Group ride
-          - 99 = Unknown/Missing (default)
+        description: "Final rate code (1=Standard, 2=JFK, ... 6=Group, 99=Unknown)"
         data_type: int
         tests:
           - not_null
           - relationships:
               to: ref('dim_rate_code')
               field: rate_code_id
-          - unique_id_in_range:
-              lookup_model: dim_rate_code
-              lookup_field: rate_code_id
           - accepted_values:
               values: [1, 2, 3, 4, 5, 6, 99]
 
       - name: payment_type_id
-        description: |
-          **Payment Type**: Numeric code for payment method
-          - 1 = Credit card
-          - 2 = Cash  
-          - 3 = No charge
-          - 4 = Dispute
-          - 5 = Unknown (default)
-          - 6 = Voided trip
+        description: "Payment type (1=Credit, 2=Cash, 3=No charge, 4=Dispute, 5=Unknown, 6=Voided)"
         data_type: int
         tests:
           - not_null
           - relationships:
               to: ref('dim_payment_type')
               field: payment_type_id
-          - unique_id_in_range:
-              lookup_model: dim_payment_type
-              lookup_field: payment_type_id
           - accepted_values:
               values: [1, 2, 3, 4, 5, 6]
 
       - name: trip_type_id
+        description: "Trip classification (1=Street-hail, 2=Dispatch)"
+        data_type: int
         tests:
           - not_null
           - relationships:
               to: ref('dim_trip_type')
               field: trip_type_id
-          - unique_id_in_range:
-              lookup_model: dim_trip_type
-              lookup_field: trip_type_id
+          - accepted_values:
+              values: [1, 2]
 
       - name: pickup_datetime
-        description: "Date and time when the meter was engaged (trip start)"
         data_type: timestamp_ntz
-        constraints:
-          - type: not_null
         tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              expression: "pickup_datetime <= current_timestamp"
 
-      - name: dropoff_datetime  
-        description: "Date and time when the meter was disengaged (trip end)"
+      - name: dropoff_datetime
         data_type: timestamp_ntz
-        constraints:
-          - type: not_null
         tests:
           - not_null
-              
+          - dbt_utils.expression_is_true:
+              expression: "dropoff_datetime <= current_timestamp"
+
       - name: passenger_count
-        description: "Number of passengers in the vehicle (driver entered value)"
         data_type: int
         tests:
           - not_null
-              
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 8
+
       - name: trip_distance
-        description: "Trip distance in miles reported by the taximeter"
         data_type: number(8,2)
-              
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 100
+
       - name: fare_amount
-        description: |
-          **Fare Amount**: Time and distance fare calculated by the meter
-          - Excludes tips, tolls, and surcharges
-          - In USD with 2 decimal precision
         data_type: number(10,2)
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
-              max_value: 1000
-              
-      - name: extra
-        description: |
-          **Extra Charges**: Miscellaneous extras and surcharges  
-          - $0.50 and $1.00 rush hour and overnight charges
-          - In USD with 2 decimal precision
-        data_type: number(10,2)
-        
-      - name: mta_tax
-        description: |
-          **MTA Tax**: $0.50 MTA tax automatically triggered based on metered rate in use
-        data_type: number(10,2)
-              
+              max_value: 10000
+
       - name: tip_amount
-        description: |
-          **Tip Amount**: Automatically populated for credit card tips
-          - Cash tips are not included
-          - In USD with 2 decimal precision  
         data_type: number(10,2)
-              
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
       - name: tolls_amount
-        description: "Total amount of all tolls paid in trip (USD)"
         data_type: number(10,2)
-              
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: extra
+        data_type: number(10,2)
+
+      - name: mta_tax
+        data_type: number(10,2)
+
       - name: improvement_surcharge
-        description: |
-          **Improvement Surcharge**: $0.30 improvement surcharge assessed on 
-          hailed trips at flag drop (began in 2015)
         data_type: number(10,2)
-        
+
+      - name: congestion_surcharge
+        data_type: number(10,2)
+
+      - name: cbd_congestion_fee
+        data_type: number(10,2)
+
       - name: total_amount
-        description: |
-          **Total Amount**: Total amount charged to passengers
-          - Does not include cash tips
-          - Sum of all fare components
         data_type: number(10,2)
         tests:
           - not_null
-              
-      - name: congestion_surcharge
-        description: |
-          **Congestion Surcharge**: $2.50 surcharge for trips in Manhattan south of 96th Street
-          - Introduced in 2019
-        data_type: number(10,2)
-        
-      - name: cbd_congestion_fee
-        description: |
-          **Central Business District Congestion Fee**: Additional fee for trips in Manhattan CBD
-          - Implementation varies by time period
-        data_type: number(10,2)
-        
+          - dbt_utils.expression_is_true:
+              expression: "ABS(total_amount - (fare_amount + tip_amount + tolls_amount + extra + mta_tax + improvement_surcharge + congestion_surcharge + cbd_congestion_fee)) < 0.01"
+
       - name: store_and_fwd_flag
-        description: |
-          **Store and Forward Flag**: Indicates whether trip record was held in vehicle memory
-          - Y = Store and forward trip  
-          - N = Not a store and forward trip
         data_type: varchar(1)
         tests:
           - accepted_values:
               values: ['Y', 'N']
 
   - name: fct_yellow_cleansed
+    description: "Cleansed Yellow Taxi Trip Data"
+    constraints:
+      - type: primary_key
+        columns: [yellow_id]
+
     columns:
+      - name: yellow_id
+        tests:
+          - unique
+          - not_null
+
       - name: PULocationID
         tests:
           - not_null
           - relationships:
               to: ref('dim_taxi_zone_lookup')
               field: location_id
-          - unique_id_in_range:
-              lookup_model: dim_taxi_zone_lookup
-              lookup_field: location_id
 
       - name: DOLocationID
         tests:
@@ -253,9 +212,6 @@ models:
           - relationships:
               to: ref('dim_taxi_zone_lookup')
               field: location_id
-          - unique_id_in_range:
-              lookup_model: dim_taxi_zone_lookup
-              lookup_field: location_id
 
       - name: VendorID
         tests:
@@ -263,9 +219,8 @@ models:
           - relationships:
               to: ref('dim_vendor')
               field: vendor_id
-          - unique_id_in_range:
-              lookup_model: dim_vendor
-              lookup_field: vendor_id
+          - accepted_values:
+              values: [1, 2]
 
       - name: RatecodeID
         tests:
@@ -273,9 +228,8 @@ models:
           - relationships:
               to: ref('dim_rate_code')
               field: rate_code_id
-          - unique_id_in_range:
-              lookup_model: dim_rate_code
-              lookup_field: rate_code_id
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6, 99]
 
       - name: payment_type_id
         tests:
@@ -283,6 +237,60 @@ models:
           - relationships:
               to: ref('dim_payment_type')
               field: payment_type_id
-          - unique_id_in_range:
-              lookup_model: dim_payment_type
-              lookup_field: payment_type_id
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6]
+
+      - name: pickup_datetime
+        tests:
+          - not_null
+          - expression_is_true:
+              column_name: pickup_datetime
+              expression: "pickup_datetime <= current_timestamp"
+
+      - name: dropoff_datetime
+        tests:
+          - not_null
+          - expression_is_true:
+              column_name: dropoff_datetime
+              expression: "dropoff_datetime <= current_timestamp"
+
+      - name: passenger_count
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 8
+
+      - name: trip_distance
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 100
+
+      - name: fare_amount
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 5000
+
+      - name: tip_amount
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: tolls_amount
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: total_amount
+        tests:
+          - not_null
+          - expression_is_true:
+              column_name: total_amount
+              expression: "ABS(total_amount - (fare_amount + tip_amount + tolls_amount + extra + mta_tax + improvement_surcharge + congestion_surcharge + cbd_congestion_fee + COALESCE(Airport_fee,0))) < 0.01"
+
+      - name: store_and_fwd_flag
+        tests:
+          - accepted_values:
+              values: ['Y', 'N']

@@ -38,7 +38,7 @@ WITH src AS (
       AND trip_distance >= 0
       AND fare_amount >= 0
       AND total_amount >= 0
-      AND passenger_count > 0
+      AND passenger_count BETWEEN 1 AND 8
       AND pickup_datetime < dropoff_datetime
       -- Exclude any future timestamps
       AND pickup_datetime < CURRENT_TIMESTAMP
@@ -51,9 +51,51 @@ WITH src AS (
         FROM {{ this }}
       )
   {% endif %}
+),
+
+features as (
+  select
+    *,
+    datediff('second', pickup_datetime, dropoff_datetime) / 60.0 as trip_minutes,
+    datediff('second', pickup_datetime, dropoff_datetime) / 3600.0 as trip_hours,
+    case when trip_distance > 0 and datediff('second', pickup_datetime, dropoff_datetime) > 0
+         then trip_distance / (datediff('second', pickup_datetime, dropoff_datetime)/3600.0)
+         end as mph,
+    case when trip_distance > 0 then fare_amount / trip_distance end as fare_per_mile
+  from src
+),
+
+filtered as (
+  select *
+  from features
+  where
+    -- distance must be reasonable for NYC trips
+    trip_distance <= 100
+    -- duration must be at least 1 minute and at most 8 hours
+    and trip_minutes between 1 and 480
+    -- realistic speeds (generous upper bound)
+    and (mph is null or (mph >= 1 and mph <= 80))
+    -- avoid absurd pricing artifacts
+    and (fare_per_mile is null or (fare_per_mile between 0.5 and 20))
+    -- total ≈ sum of parts (allow 1 cent rounding)
+    and abs(
+      total_amount - (
+        coalesce(fare_amount,0)
+        + coalesce(tip_amount,0)
+        + coalesce(tolls_amount,0)
+        + coalesce(extra,0)
+        + coalesce(mta_tax,0)
+        + coalesce(improvement_surcharge,0)
+        + coalesce(congestion_surcharge,0)
+        + coalesce(cbd_congestion_fee,0)
+        + coalesce(Airport_fee,0)
+      )
+    ) < 0.01
 )
 
+
 SELECT
-  {{ dbt_utils.generate_surrogate_key(['VendorID', 'pickup_datetime', 'dropoff_datetime', 'passenger_count']) }} AS yellow_id,
+  {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }} AS yellow_id,
   *
-FROM src
+FROM filtered
+QUALIFY COUNT(*) OVER (PARTITION BY {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}) = 1
