@@ -79,8 +79,8 @@ Ultimately supporting **operational decision-making** and **public transparency*
 - [x] Initial Snowflake setup (database, warehouse, schemas)  
 - [x] Ingest raw TLC data  
 - [x] Build staging models in dbt  
-- [ ] Add data quality tests  
-- [ ] Create fact & dimension models  
+- [x] Add data quality tests  
+- [x] Create fact & dimension models  
 - [ ] Define dbt exposures for BI  
 - [ ] Deploy reporting dashboards  
 
