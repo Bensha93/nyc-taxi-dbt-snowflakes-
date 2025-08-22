@@ -7,7 +7,7 @@ nyc taxi and limousine commission (dbt project   snowflakes-db)
 This is an **ongoing project** where I’m building a scalable analytics pipeline in **dbt** using **NYC TLC Taxi Trip Records** on **Snowflake**.  
 The project is actively being developed — expect regular updates, new models, and documentation improvements.
 
-![bi schema](nyc_tlc_power_bi_schema.png)
+![bi schema](nyc_tlc_bi_schema.png)
 
 ---
 
