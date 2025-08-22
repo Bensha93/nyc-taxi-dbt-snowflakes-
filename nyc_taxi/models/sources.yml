@@ -1,0 +1,73 @@
+# NYC Taxi Data Warehouse Project
+
+version: 2
+
+sources:
+  - name: tlc_raw
+    description: |
+      Raw NYC Taxi & Limousine Commission (TLC) trip record data.
+      Updated monthly with historical data going back to 2009 for Yellow taxis 
+      and 2013 for Green taxis. the Raw Data is from 2020 to 2025 for my portfolio
+      project
+
+    schema: raw
+
+    tables:
+      - name: yellow_trip_raw
+        description: "Raw yellow taxi trip records from TLC"
+        columns:
+          - name: pickup_datetime
+            description: "Timestamp when meter was engaged"
+            tests:
+              - not_null
+          - name: dropoff_datetime  
+            description: "Timestamp when meter was disengaged"
+            tests:
+              - not_null
+
+      - name: green_trip_raw
+        description: "Raw green taxi trip records from TLC"
+        columns:
+          - name: pickup_datetime
+            description: "Timestamp when meter was engaged" 
+            tests:
+              - not_null
+          - name: dropoff_datetime
+            description: "Timestamp when meter was disengaged"
+            tests:
+              - not_null
+
+
+exposures:
+  - name: taxi_analytics_dashboard
+    type: dashboard
+    url: https://
+    description: |
+      Executive dashboard showing key metrics for NYC taxi operations including:
+      - Daily trip volumes by taxi type
+      - Revenue trends and fare analysis  
+      - Geographic patterns and popular routes
+      - Performance metrics (speed, efficiency)
+    
+    depends_on:
+      - ref('fct_yellow_cleansed')
+      - ref('fct_green_cleansed')
+    
+    owner:
+      name: Adewole Oyediran
+      email: bensha2019@outlook.com
+
+  - name: operational_reports
+    type: application
+    url: https://
+    description: |
+      Operational reporting suite for taxi fleet management and regulation compliance.
+      Provides detailed breakdowns of trip patterns, fare compliance, and service quality metrics.
+    
+    depends_on:
+      - ref('fct_yellow_cleansed') 
+      - ref('fct_green_cleansed')
+    
+    owner:
+      name: Adewole Oyediran
+      email: bensha2019@outlook.com

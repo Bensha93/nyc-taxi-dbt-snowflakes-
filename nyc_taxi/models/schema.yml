@@ -1,59 +1,26 @@
 version: 2
 
-sources:
-  - name: tlc_raw
-    schema: raw
-    tables:
-      - name: yellow_trip_raw
-        loaded_at_field: pickup_datetime
-        freshness:
-          warn_after: {count: 1, period: hour}
-          error_after: {count: 24, period: hour}
-      - name: green_trip_raw
-        loaded_at_field: pickup_datetime
-        freshness:
-          warn_after: {count: 1, period: hour}
-          error_after: {count: 24, period: hour}
-
 models:
   - name: fct_green_cleansed
-    description: |
-      ## Green Taxi Trips Fact Table (Cleansed)
-      
-      Green taxis are authorized to pick up passengers in outer boroughs 
-      and Manhattan above 96th Street. This table contains cleansed and 
-      validated green taxi trip records.
-
-      **Business Rules Applied**:
-      - Pickup < Dropoff
-      - Passenger count 1–8
-      - Distance non-negative
-      - Monetary amounts non-negative
-      - VendorID in {1, 2}
-      - TripType in {1, 2}
-      - No future trips
-
-    constraints:
-      - type: primary_key
-        columns: [green_id]
-      - type: not_null
-        columns: ['VendorID', 'pickup_datetime', 'dropoff_datetime', 'passenger_count']
-      - type: check
-        expression: "pickup_datetime < dropoff_datetime"
-      - type: check
-        expression: "fare_amount >= 0"
-      - type: check
-        expression: "total_amount >= fare_amount"
+    description: "{{ doc('green_taxi_overview') }}"
 
     columns:
       - name: green_id
-        description: "Unique surrogate key for each green taxi trip record"
+        description: |
+          **Primary Key - Surrogate Key**
+          
+          Generated unique identifier combining VendorID, payment_type_id, 
+          pickup_datetime, dropoff_datetime, passenger_count, tip_amount, 
+          PULocationID, DOLocationID, and fare_per_mile.
+          
+          Ensures row-level uniqueness and handles deduplication.
         data_type: varchar(32)
         tests:
           - unique
           - not_null
 
       - name: PULocationID
+        description: "{{ doc('pickup_location_zone') }}"
         tests:
           - not_null
           - relationships:
@@ -61,6 +28,7 @@ models:
               field: location_id
 
       - name: DOLocationID
+        description: "{{ doc('dropoff_location_zone') }}"
         tests:
           - not_null
           - relationships:
@@ -68,7 +36,12 @@ models:
               field: location_id
 
       - name: VendorID
-        description: "TPEP Provider (1=CMT, 2=VeriFone)"
+        description: |
+          **Vendor Identifier**
+          
+          Code indicating the provider associated with the trip record:
+          - 1 = Creative Mobile Technologies, LLC
+          - 2 = VeriFone Inc.
         data_type: int
         tests:
           - not_null
@@ -79,7 +52,17 @@ models:
               values: [1, 2]
 
       - name: RatecodeID
-        description: "Final rate code (1=Standard, 2=JFK, ... 6=Group, 99=Unknown)"
+        description: |
+          **Rate Code**
+          
+          Final rate code in effect at the end of the trip:
+          - 1 = Standard rate
+          - 2 = JFK
+          - 3 = Newark
+          - 4 = Nassau or Westchester
+          - 5 = Negotiated fare
+          - 6 = Group ride
+          - 99 = Unknown/Missing (default)
         data_type: int
         tests:
           - not_null
@@ -90,7 +73,7 @@ models:
               values: [1, 2, 3, 4, 5, 6, 99]
 
       - name: payment_type_id
-        description: "Payment type (1=Credit, 2=Cash, 3=No charge, 4=Dispute, 5=Unknown, 6=Voided)"
+        description: "{{ doc('payment_types') }}"
         data_type: int
         tests:
           - not_null
@@ -101,7 +84,12 @@ models:
               values: [1, 2, 3, 4, 5, 6]
 
       - name: trip_type_id
-        description: "Trip classification (1=Street-hail, 2=Dispatch)"
+        description: |
+          **Trip Type**
+          
+          Code indicating whether the trip was a street-hail or a dispatch:
+          - 1 = Street-hail
+          - 2 = Dispatch
         data_type: int
         tests:
           - not_null
@@ -112,6 +100,11 @@ models:
               values: [1, 2]
 
       - name: pickup_datetime
+        description: |
+          **Pickup Date and Time**
+          
+          Date and time when the meter was engaged.
+          Must be before dropoff_datetime and not in the future.
         data_type: timestamp_ntz
         tests:
           - not_null
@@ -120,6 +113,11 @@ models:
               expression: "pickup_datetime <= current_timestamp"
 
       - name: dropoff_datetime
+        description: |
+          **Dropoff Date and Time**
+          
+          Date and time when the meter was disengaged.
+          Must be after pickup_datetime and not in the future.
         data_type: timestamp_ntz
         tests:
           - not_null
@@ -128,6 +126,11 @@ models:
               expression: "dropoff_datetime <= current_timestamp"
 
       - name: passenger_count
+        description: |
+          **Number of Passengers**
+          
+          Number of passengers in the vehicle (driver entered value).
+          Filtered to reasonable range of 1-8 passengers.
         data_type: int
         tests:
           - not_null
@@ -136,6 +139,11 @@ models:
               max_value: 8
 
       - name: trip_distance
+        description: |
+          **Trip Distance**
+          
+          Trip distance in miles reported by the taximeter.
+          Filtered to ≤ 100 miles for data quality.
         data_type: number(8,2)
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
@@ -143,6 +151,11 @@ models:
               max_value: 100
 
       - name: fare_amount
+        description: |
+          **Base Fare Amount**
+          
+          Time-and-distance fare calculated by the meter in USD.
+          Must be non-negative.
         data_type: number(10,2)
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
@@ -150,33 +163,73 @@ models:
               max_value: 5000
 
       - name: tip_amount
+        description: |
+          **Tip Amount**
+          
+          Tip amount in USD. Automatically populated for credit card tips.
+          Cash tips are not included. Defaults to 0 if null.
         data_type: number(10,2)
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
 
       - name: tolls_amount
+        description: |
+          **Tolls Amount**
+          
+          Total amount of all tolls paid in trip in USD.
+          Defaults to 0 if null.
         data_type: number(10,2)
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
 
       - name: extra
+        description: |
+          **Extra Charges**
+          
+          Miscellaneous extras and surcharges including $0.50 and $1 rush hour 
+          and overnight charges.
         data_type: number(10,2)
 
       - name: mta_tax
+        description: |
+          **MTA Tax**
+          
+          $0.50 MTA tax that is automatically triggered based on the metered 
+          rate in use.
         data_type: number(10,2)
 
       - name: improvement_surcharge
+        description: |
+          **Improvement Surcharge**
+          
+          $0.30 improvement surcharge assessed on hailed trips.
+          Began being levied in 2015.
         data_type: number(10,2)
 
       - name: congestion_surcharge
+        description: |
+          **Congestion Surcharge**
+          
+          Congestion surcharge for trips in the congestion zone.
+          Applied to yellow and green taxis.
         data_type: number(10,2)
 
       - name: cbd_congestion_fee
+        description: |
+          **CBD Congestion Fee**
+          
+          Central Business District congestion pricing fee.
+          Additional fee for trips in Manhattan's central business district.
         data_type: number(10,2)
 
       - name: total_amount
+        description: |
+          **Total Trip Amount**
+          
+          Total amount charged to passengers. Should equal the sum of all 
+          component amounts within 1 cent tolerance.
         data_type: number(10,2)
         tests:
           - not_null
@@ -185,24 +238,89 @@ models:
               expression: "ABS(total_amount - (fare_amount + tip_amount + tolls_amount + extra + mta_tax + improvement_surcharge + congestion_surcharge + cbd_congestion_fee)) < 0.01"
 
       - name: store_and_fwd_flag
+        description: |
+          **Store and Forward Flag**
+          
+          Indicates whether the trip record was held in vehicle memory 
+          before being sent to the vendor:
+          - Y = Store and forward trip
+          - N = Not a store and forward trip
         data_type: varchar(1)
         tests:
           - accepted_values:
               values: ['Y', 'N']
 
+      - name: trip_minutes
+        description: |
+          **Trip Duration in Minutes**
+          
+          Calculated field: Duration of trip in minutes.
+          Derived from pickup_datetime and dropoff_datetime.
+          Filtered to 1-480 minutes (8 hours maximum).
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 480
+
+      - name: trip_hours
+        description: |
+          **Trip Duration in Hours**
+          
+          Calculated field: Duration of trip in hours (decimal).
+          Derived from pickup_datetime and dropoff_datetime.
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.016  # 1 minute
+              max_value: 8
+
+      - name: mph
+        description: |
+          **Average Speed (Miles per Hour)**
+          
+          Calculated field: Average speed during the trip.
+          Only calculated when trip_distance > 0 and trip duration > 0.
+          Filtered to reasonable range of 1-80 mph.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 80
+
+      - name: fare_per_mile
+        description: |
+          **Fare per Mile**
+          
+          Calculated field: Base fare amount divided by trip distance.
+          Only calculated when trip_distance > 0.
+          Filtered to reasonable range of $0.50-$20.00 per mile.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.5
+              max_value: 20.0
+
   - name: fct_yellow_cleansed
-    description: "Cleansed Yellow Taxi Trip Data"
+    description: "{{ doc('yellow_taxi_overview') }}"
     constraints:
       - type: primary_key
         columns: [yellow_id]
 
     columns:
       - name: yellow_id
+        description: |
+          **Primary Key - Surrogate Key**
+          
+          Generated unique identifier combining VendorID, payment_type_id, 
+          pickup_datetime, dropoff_datetime, passenger_count, tip_amount, 
+          PULocationID, DOLocationID, and fare_per_mile.
+          
+          Ensures row-level uniqueness and handles deduplication.
         tests:
           - unique
           - not_null
 
       - name: PULocationID
+        description: "{{ doc('pickup_location_zone') }}"
         tests:
           - not_null
           - relationships:
@@ -210,6 +328,7 @@ models:
               field: location_id
 
       - name: DOLocationID
+        description: "{{ doc('dropoff_location_zone') }}"
         tests:
           - not_null
           - relationships:
@@ -217,6 +336,12 @@ models:
               field: location_id
 
       - name: VendorID
+        description: |
+          **Vendor Identifier**
+          
+          Code indicating the provider associated with the trip record:
+          - 1 = Creative Mobile Technologies, LLC
+          - 2 = VeriFone Inc.
         tests:
           - not_null
           - relationships:
@@ -226,6 +351,17 @@ models:
               values: [1, 2]
 
       - name: RatecodeID
+        description: |
+          **Rate Code**
+          
+          Final rate code in effect at the end of the trip:
+          - 1 = Standard rate
+          - 2 = JFK Airport
+          - 3 = Newark Airport
+          - 4 = Nassau or Westchester
+          - 5 = Negotiated fare
+          - 6 = Group ride
+          - 99 = Unknown/Missing (default)
         tests:
           - not_null
           - relationships:
@@ -235,6 +371,7 @@ models:
               values: [1, 2, 3, 4, 5, 6, 99]
 
       - name: payment_type_id
+        description: "{{ doc('payment_types') }}"
         tests:
           - not_null
           - relationships:
@@ -244,6 +381,11 @@ models:
               values: [1, 2, 3, 4, 5, 6]
 
       - name: pickup_datetime
+        description: |
+          **Pickup Date and Time**
+          
+          Date and time when the meter was engaged.
+          Must be before dropoff_datetime and not in the future.
         tests:
           - not_null
           - expression_is_true:
@@ -251,6 +393,11 @@ models:
               expression: "pickup_datetime <= current_timestamp"
 
       - name: dropoff_datetime
+        description: |
+          **Dropoff Date and Time**
+          
+          Date and time when the meter was disengaged.
+          Must be after pickup_datetime and not in the future.
         tests:
           - not_null
           - expression_is_true:
@@ -258,6 +405,11 @@ models:
               expression: "dropoff_datetime <= current_timestamp"
 
       - name: passenger_count
+        description: |
+          **Number of Passengers**
+          
+          Number of passengers in the vehicle (driver entered value).
+          Filtered to reasonable range of 1-8 passengers.
         tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_between:
@@ -265,28 +417,57 @@ models:
               max_value: 8
 
       - name: trip_distance
+        description: |
+          **Trip Distance**
+          
+          Trip distance in miles reported by the taximeter.
+          Filtered to ≤ 100 miles for data quality.
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
               max_value: 100
 
       - name: fare_amount
+        description: |
+          **Base Fare Amount**
+          
+          Time-and-distance fare calculated by the meter in USD.
+          Must be non-negative.
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
               max_value: 5000
 
       - name: tip_amount
+        description: |
+          **Tip Amount**
+          
+          Tip amount in USD. Automatically populated for credit card tips.
+          Cash tips are not included. Defaults to 0 if null.
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
 
       - name: tolls_amount
+        description: |
+          **Tolls Amount**
+          
+          Total amount of all tolls paid during the trip in USD.
+          Includes bridges, tunnels, and other toll facilities.
+          Defaults to 0 if null.
         tests:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
 
       - name: total_amount
+        description: |
+          **Total Trip Amount**
+          
+          Total amount charged to passengers. Should equal the sum of all 
+          component amounts within 1 cent tolerance.
+          
+          Includes: fare_amount + tip_amount + tolls_amount + extra + mta_tax + 
+          improvement_surcharge + congestion_surcharge + cbd_congestion_fee + Airport_fee
         tests:
           - not_null
           - expression_is_true:
@@ -294,6 +475,106 @@ models:
               expression: "ABS(total_amount - (fare_amount + tip_amount + tolls_amount + extra + mta_tax + improvement_surcharge + congestion_surcharge + cbd_congestion_fee + COALESCE(Airport_fee,0))) < 0.01"
 
       - name: store_and_fwd_flag
+        description: |
+          **Store and Forward Flag**
+          
+          Indicates whether the trip record was held in vehicle memory 
+          before being sent to the vendor:
+          - Y = Store and forward trip
+          - N = Not a store and forward trip (default)
         tests:
           - accepted_values:
               values: ['Y', 'N']
+
+      - name: extra
+        description: |
+          **Extra Charges**
+          
+          Miscellaneous extras and surcharges including:
+          - $0.50 and $1.00 rush hour charges (weekdays 4-8 PM)
+          - $0.50 overnight charges (8 PM - 6 AM)
+
+      - name: mta_tax
+        description: |
+          **MTA Tax**
+          
+          $0.50 MTA tax automatically triggered based on the metered rate in use.
+          Applied to all metered trips.
+
+      - name: improvement_surcharge
+        description: |
+          **Improvement Surcharge**
+          
+          $0.30 improvement surcharge assessed on hailed trips.
+          Began being levied in 2015.
+
+      - name: congestion_surcharge
+        description: |
+          **Congestion Surcharge**
+          
+          $2.50 surcharge for trips that begin, end, or pass through Manhattan 
+          south of 96th Street (congestion zone).
+          Applied since February 2019.
+
+      - name: cbd_congestion_fee
+        description: |
+          **CBD Congestion Fee**
+          
+          Central Business District congestion pricing fee.
+          Additional fee for trips in Manhattan's central business district 
+          below 60th Street.
+
+      - name: Airport_fee
+        description: |
+          **Airport Fee**
+          
+          $1.25 fee for pickups at LaGuardia and JFK airports.
+          Only applicable to airport pickup trips. Defaults to 0 if null.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 5
+
+      - name: trip_minutes
+        description: "{{ doc('calculated_metrics') }}"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 480
+
+      - name: trip_hours
+        description: |
+          **Trip Duration in Hours**
+          
+          Calculated field: Duration of trip in decimal hours.
+          Derived from pickup_datetime and dropoff_datetime.
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.016  # 1 minute
+              max_value: 8
+
+      - name: mph
+        description: |
+          **Average Speed (Miles per Hour)**
+          
+          Calculated field: Average speed during the trip.
+          Only calculated when trip_distance > 0 and trip duration > 0.
+          Filtered to reasonable range of 1-80 mph for NYC conditions.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 80
+
+      - name: fare_per_mile
+        description: |
+          **Fare per Mile**
+          
+          Calculated field: Base fare amount divided by trip distance.
+          Only calculated when trip_distance > 0.
+          Filtered to reasonable range of $0.50-$20.00 per mile.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.5
+              max_value: 20.0

@@ -1,11 +1,20 @@
-{{ config(
-  materialized='incremental',
-  incremental_strategy='merge',
-  unique_key='green_id',
-  tags=['fct','green','cleansed'],
-  alias='FCT_GREEN_CLEANSED',
-  description='Cleansed Green Taxi Trips Fact Table'
-) }}
+
+{{
+  config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='green_id',
+    tags=['fct', 'green', 'cleansed', 'taxi'],
+    alias='FCT_GREEN_CLEANSED',
+    description='Cleansed and validated Green Taxi trip data with quality filters and calculated metrics',
+    meta={
+      'owner': 'Adewole Oyediran',
+      'data_source': 'NYC TLC Green Taxi Trip Records',
+      'update_frequency': 'Daily',
+      'quality_checks': 'Comprehensive data validation applied'
+    }
+  )
+}}
 
 WITH src AS (
   SELECT
