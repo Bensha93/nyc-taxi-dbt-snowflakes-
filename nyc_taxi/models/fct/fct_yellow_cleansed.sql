@@ -19,25 +19,25 @@
 WITH src AS (
   SELECT
       VendorID,
-      COALESCE(RatecodeID, 99)::int            AS RatecodeID,
-      COALESCE(payment_type_id, 5)::int        AS payment_type_id,
-      pickup_datetime::timestamp               AS pickup_datetime,
-      dropoff_datetime::timestamp              AS dropoff_datetime,
-      fare_amount::number(10,2)                AS fare_amount,
-      COALESCE(tip_amount, 0)::number(10,2)    AS tip_amount,
-      extra::number(10,2)                      AS extra,
-      COALESCE(tolls_amount, 0)::number(10,2)  AS tolls_amount,
-      mta_tax::number(10,2)                    AS mta_tax,
-      total_amount::number(10,2)               AS total_amount,
-      passenger_count::int                     AS passenger_count,
-      PULocationID::int                        AS PULocationID,
-      DOLocationID::int                        AS DOLocationID,
-      trip_distance::number(10,2)              AS trip_distance,
+      COALESCE(RatecodeID, 99)                 AS RatecodeID,
+      COALESCE(payment_type_id, 5)             AS payment_type_id,
+      pickup_datetime,
+      dropoff_datetime,
+      fare_amount,
+      tip_amount,
+      extra,
+      tolls_amount,
+      mta_tax,
+      total_amount,
+      passenger_count,
+      PULocationID,
+      DOLocationID,
+      trip_distance,
       COALESCE(store_and_fwd_flag, 'N')        AS store_and_fwd_flag,
-      improvement_surcharge::number(10,2)      AS improvement_surcharge,
-      congestion_surcharge::number(10,2)       AS congestion_surcharge,
-      cbd_congestion_fee::number(10,2)         AS cbd_congestion_fee,
-      COALESCE(Airport_fee, 0)::number(10,2)   AS Airport_fee
+      improvement_surcharge,
+      congestion_surcharge,
+      cbd_congestion_fee,
+      Airport_fee
   FROM {{ ref('src_yellow_trip') }}
   WHERE
       pickup_datetime IS NOT NULL
@@ -108,11 +108,3 @@ SELECT
   *
 FROM filtered
 QUALIFY COUNT(*) OVER (PARTITION BY {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}) = 1
-ORDER BY pickup_datetime, dropoff_datetime
-{% if is_incremental() %}
-  AND NOT EXISTS (
-    SELECT 1
-    FROM {{ this }} AS existing
-    WHERE existing.yellow_id = {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}
-  )
-{% endif %}

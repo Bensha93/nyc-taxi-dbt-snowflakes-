@@ -33,9 +33,14 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   nyc_taxi:
     +materialized: view
+    +post-hook:
+      - "GRANT SELECT ON {{ this }} TO ROLE REPORTER"
     fct:
       +materialized: table
     dim:
       +materialized: table
     src:
       +materialized: ephemeral
+seeds:
+    +post-hook:
+      - "GRANT SELECT ON {{ this }} TO ROLE REPORTER"
