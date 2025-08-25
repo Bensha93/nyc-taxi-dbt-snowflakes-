@@ -1,0 +1,17 @@
+SELECT ?boroughLabel ?zoneLabel ?lat ?long
+WHERE {
+  # Boroughs of NYC (instance of / subclass of borough of NYC)
+  ?borough wdt:P31/wdt:P279* wd:Q408804 .
+  
+  # Zones (located in that borough)
+  ?zone wdt:P131 ?borough .
+  
+  # Coordinates of the zone
+  ?zone wdt:P625 ?coord .
+  BIND(geof:latitude(?coord) AS ?lat)
+  BIND(geof:longitude(?coord) AS ?long)
+  
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}
+ORDER BY ?boroughLabel ?zoneLabel
+# To visualize: https://query.wikidata.org/#SELECT%20%3FboroughLabel%20%3FzoneLabel%20%3Flat%20%3Flong%0AWHERE%20%7B%0A%20%20%23%20Boroughs%20of%20NYC%20(instance%20of%20/%20subclass%20of%20borough%20of%20NYC)%0A%20%20%3Fborough%20wdt%3AP31/wdt%3AP279*%20wd%3AQ408804%20.%0A%20%20%0A%20%20%23%20Zones%20(located%20in%20that%20borough)%0A%20%20%3Fzone%20wdt%3AP131%20%3Fborough%20.%0A%20%20%0A%20%20%23%20Coordinates%20of%20the%20zone%0A%20%20%3Fzone%20wdt%3AP625%20%3Fcoord%20.%0A++++BIND(geof:latitude(%3Fcoord)%20AS%20%3Flat)%0A++++BIND(geof:longitude(%3Fcoord)%20AS%20%3Flong)%0A++++SERVICEwikibase:label{bd:serviceParamwikibase:language"en".}%0A}%0AORDERBY?boroughLabel?zoneLabel

@@ -46,6 +46,7 @@ WITH src AS (
       AND DOlocationID IS NOT NULL
       AND passenger_count BETWEEN 1 AND 8
       AND PULocationID IS NOT NULL
+      AND YEAR(pickup_datetime) >= 2021
       AND trip_distance >= 0
       AND fare_amount >= 0
       AND total_amount >= 0
@@ -105,6 +106,7 @@ filtered as (
 
 SELECT
   {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }} AS green_id,
+  CAST(pickup_datetime AS DATE) AS DateID,
   *
 FROM filtered
 QUALIFY COUNT(*) OVER (PARTITION BY {{ dbt_utils.generate_surrogate_key(['VendorID', 'payment_type_id', 'pickup_datetime', 'dropoff_datetime', 'passenger_count', 'tip_amount', 'PULocationID', 'DOLocationID', 'fare_per_mile']) }}) = 1
