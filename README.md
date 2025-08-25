@@ -7,6 +7,8 @@ nyc taxi and limousine commission (dbt project   snowflakes-db)
 This is an **ongoing project** where I’m building a scalable analytics pipeline in **dbt** using **NYC TLC Taxi Trip Records** on **Snowflake**.  
 The project is actively being developed — expect regular updates, new models, and documentation improvements.
 
+![bi schema](nyc_tlc_bi_schema.png)
+
 ---
 
 ## Project Goal
@@ -81,7 +83,7 @@ Ultimately supporting **operational decision-making** and **public transparency*
 - [x] Build staging models in dbt  
 - [x] Add data quality tests  
 - [x] Create fact & dimension models  
-- [ ] Define dbt exposures for BI  
+- [x] Define dbt exposures for BI  
 - [ ] Deploy reporting dashboards  
 
 ---
