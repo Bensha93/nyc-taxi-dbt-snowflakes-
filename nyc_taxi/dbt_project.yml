@@ -44,3 +44,6 @@ models:
 seeds:
     +post-hook:
       - "GRANT SELECT ON {{ this }} TO ROLE REPORTER"
+
+dbt-cloud:
+    project-id: 70471823497520
