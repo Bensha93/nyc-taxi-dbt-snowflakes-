@@ -294,15 +294,15 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Executive Overview** — KPIs, YoY deltas, monthly trend
   
-  ![Executive Overview](POWER BI/Executive Overview.png)
+  ![Executive Overview](Executive Overview.png)
 
 - **Geographic Insights** — Top pickup/dropoff zones + map (uses Wikidata coords)
   
-  ![Geographic Insights](POWER BI/Geographic Insight.png)
+  ![Geographic Insights](Geographic Insight.png)
 
 - **Fare & Revenue Analysis** — Component breakdown, Avg fare/mile vs distance, fare distribution
   
-  [Fare & Revenue Analysis](POWER BI/Fare & Revenue.png)
+  [Fare & Revenue Analysis](Fare & Revenue.png)
 
 - **Passenger & Trip Behavior** — Trip distance distribution, passenger count patterns, distance vs fare
   
@@ -310,7 +310,7 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Operational Performance** — Congestion surcharge trend, vendor x payment insights, top tolls by zone
   
-  ![Operational Performance](POWER BI/Operation Performance.png)
+  ![Operational Performance](Operation Performance.png)
 
 ---
 
