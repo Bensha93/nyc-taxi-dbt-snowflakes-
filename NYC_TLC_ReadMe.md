@@ -285,7 +285,7 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Fare & Revenue Analysis** — Component breakdown, Avg fare/mile vs distance, fare distribution
   
-  ![Fare & Revenue Analysis](POWER BI/Fare & Revenue.png)
+  [Fare & Revenue Analysis](POWER BI/Fare & Revenue.png)
 
 - **Passenger & Trip Behavior** — Trip distance distribution, passenger count patterns, distance vs fare
   
