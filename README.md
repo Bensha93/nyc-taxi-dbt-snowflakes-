@@ -79,12 +79,6 @@ flowchart LR
     FG --> PB
     n1 --> SF
 
-    n6@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
-    n2@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
-    n1@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
-    n3@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
-    n5@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
-    n4@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
 ```
 
 ### Star schema (analytical model)
