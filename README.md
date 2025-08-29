@@ -22,7 +22,7 @@
 ```mermaid
 flowchart LR
   subgraph Web["NYC Open Data (TLC Trip Data)"]
-    A[Monthly Yellow/Green files (Parquet/CSV)]
+    A[Monthly Yellow/Green files Parquet/CSV]
   end
 
   subgraph Py["Python Ingestion"]
