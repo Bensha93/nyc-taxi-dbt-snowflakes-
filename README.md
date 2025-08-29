@@ -298,11 +298,11 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Geographic Insights** — Top pickup/dropoff zones + map (uses Wikidata coords)
   
-  ![Geographic Insights](Geographic Insight.png)
+  ![Geographic Insight.png](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/f05244a7445bbfd99e6ef44afdfa149ef3a2d882/Geographic%20Insight.png)
 
 - **Fare & Revenue Analysis** — Component breakdown, Avg fare/mile vs distance, fare distribution
   
-  [Fare & Revenue Analysis](Fare & Revenue.png)
+  ![Fare & Revenue Analysis](Fare & Revenue.png)
 
 - **Passenger & Trip Behavior** — Trip distance distribution, passenger count patterns, distance vs fare
   
