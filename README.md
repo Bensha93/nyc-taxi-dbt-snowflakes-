@@ -20,7 +20,13 @@
 
 ### High‑level flow
 
-![NYC pipeline flow chart.png](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/7024255b5243d5db645abf94a813579412f67560/NYC%20pipeline%20flow%20chart.png))
+![NYC pipeline flow chart.png](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/7024255b5243d5db645abf94a813579412f67560/NYC%20pipeline%20flow%20chart.png)
+
+
+
+---
+
+
 
 ### Star schema (analytical model)
 ```mermaid
