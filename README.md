@@ -153,6 +153,10 @@ erDiagram
   DIM_BOROUGH ||--o{ DIM_TAXI_ZONE_LOOKUP : borough_id
 ```
 
+### Star schema (Power BI model)
+
+![powe bi](POWER BI/NYC_TLC_DASHBOARD_ERD.png)
+
 ### Orchestration (run order)
 ```mermaid
 sequenceDiagram
