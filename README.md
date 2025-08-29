@@ -66,7 +66,7 @@ flowchart LR
   RY --> E1 --> FY
   RG --> E2 --> FG
   L1 --> D1 & D2 & D3 & D4
-  D1 & D2 & D3 & D4 --> FY
+  D1 & D2 & D3 --> FY
   D1 & D2 & D3 & D4 --> FG
   DZ --> FY
   DZ --> FG
