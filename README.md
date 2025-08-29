@@ -28,14 +28,14 @@ flowchart LR
  subgraph Py["Python Ingestion"]
         B["Parameterized downloader<br>requests + pandas/pyarrow"]
         B2["Local/Cloud landing folder"]
-        n2["This is sample label"]
+        n8["Python"]
   end
  subgraph SF["Snowflake"]
         C["RAW DB / TAXI schema"]
         S["INT_STAGE<br> PARQUET_FMT"]
         RY["RAW.YELLOW_TAXI_TRIP VARIANT"]
         RG["RAW.GREEN_TAXI_TRIP VARIANT"]
-        n1["This is sample label"]
+        n7["snowflakes"]
   end
  subgraph DBT["dbt (VS Code)"]
         E1["Ephemeral src_yellow_trip"]
@@ -49,15 +49,15 @@ flowchart LR
         DBORO["DIM_BOROUGH - with Wikidata coords"]
         FY["FCT_YELLOW_CLEANSED - incremental merge"]
         FG["FCT_GREEN_CLEANSED - incremental merge"]
-        n3["This is sample label"]
+        n9["dbt"]
   end
  subgraph GEO["Wikidata"]
         WQ["SPARQL query → Borough coords"]
-        n5["This is sample label"]
+        n11[" "]
   end
  subgraph BI["Power BI"]
         PB["Star model + DAX + pages"]
-        n4["This is sample label"]
+        n10["Power BI"]
   end
     A --> B
     B --> B2
@@ -77,7 +77,14 @@ flowchart LR
     DBORO --> DZ
     FY --> PB
     FG --> PB
-    n1 --> SF
+
+    n8@{ img: "https://cdn.simpleicons.org/python/3776AB", h: 200, w: 200, pos: "b"}
+    n7@{ img: "https://cdn.simpleicons.org/snowflake/29B5E8", h: 200, w: 200, pos: "b", constraint: "on"}
+    n9@{ img: "https://cdn.simpleicons.org/dbt/FF694B", h: 200, w: 200, pos: "b"}
+    n11@{ img: "https://www.wikidata.org/static/images/project-logos/wikidatawiki.png", h: 200, w: 200, pos: "b"}
+    n10@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/cf/New_Power_BI_Logo.svg", h: 200, w: 200, pos: "b"}
+
+
 
 ```
 
