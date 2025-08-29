@@ -155,7 +155,7 @@ erDiagram
 
 ### Star schema (Power BI model)
 
-![powe bi](POWER BI/NYC_TLC_DASHBOARD_ERD.png)
+![powe bi](NYC_TLC_DASHBOARD_ERD.png)
 
 ### Orchestration (run order)
 ```mermaid
