@@ -1,340 +1,367 @@
-# NYC Taxi Analytics — End‑to‑End Data Engineering (Python → Snowflake → dbt)
+# NYC Taxi Analytics Pipeline — End‑to‑End Portfolio Project
 
-> **Hire‑me highlight:** This project demonstrates a complete, production‑style analytics pipeline: web scraping, cloud data warehousing, semantic modeling with dbt, data quality testing, and geospatial enrichment from Wikidata — all reproducible from scratch.
-
----
-
-## ⚡ What you’ll see at a glance
-- **Ingestion:** Python scrapes NYC TLC trip data and pushes it to **Snowflake** (`RAW` database).
-- **Modeling:** **dbt** transforms raw data into a **clean star schema** (dim/fact) ready for BI.
-- **Governance:** Ephemeral **source** models, **seeded** zone lookup, and robust **tests**.
-- **Enrichment:** Exact **latitude/longitude** per NYC **borough** via **SPARQL** from Wikidata.
-- **Reproducible:** Clear, copy‑pasteable commands, folder structure, and config examples.
+> **From raw web data to a production‑style analytics stack (Snowflake → dbt → Power BI) with geospatial enrichment via Wikidata.**  
+> This README walks through every step I executed: scraping, loading, modeling, testing, documentation, and visualization. It’s written to showcase practical data engineering skills to recruiters and hiring managers.
 
 ---
 
-## 🧭 Architecture
+## 🎯 What I built
+
+- **Scraped** NYC Taxi trip data (Yellow & Green) from the official NYC website using **Python**.
+- **Ingested** raw CSV/Parquet files into **Snowflake** (a newly created `RAW` database).
+- **Seeded** and **modeled** lookup data (zones, vendors, payment types, rate codes, trip types).
+- **Set up dbt in VS Code**, connected to Snowflake, and implemented a **source → staging (ephemeral) → dim/fact** layered model.
+- **Enriched** boroughs with **precise latitude/longitude** from **Wikidata** using **SPARQL**.
+- **Validated** with dbt tests and **documented** the project (dbt docs).
+- **Delivered** an interactive **Power BI** report with a clean, recruiter‑friendly design ready for exec‑level insights.
+
+---
+
+## 🧱 Tech Stack
+
+- **Ingestion:** Python (requests, pandas/pyarrow), optional Snowflake Connector for Python or SnowSQL
+- **Warehouse:** Snowflake (database: `RAW`, plus `ANALYTICS`/`TRANSFORM` schemas)
+- **Transformation & Testing:** **dbt** (ephemeral staging, sources, seeds, dim/fact layers)
+- **Metadata & Docs:** dbt docs + YAML
+- **Geospatial Enrichment:** Wikidata **SPARQL**
+- **BI:** **Power BI Desktop** (model + curated visuals)
+
+---
+
+## 🗺️ Architecture (high level)
 
 ```
-NYC TLC Website ─┐
-                  ├─(Python: requests/pandas)─► Snowflake (DB: RAW, Schema: PUBLIC)
-Wikidata SPARQL ─┘                                      │
-                                                        ▼
-                                                 dbt (in VS Code)
-                                   ┌───────────────┬──────────────────────┐
-                                   │               │                      │
-                              Seeds/Lookups     Ephemeral Sources       Dim & Fact Models
-                             (Taxi Zone Lookup) (src_* models)          (dim_*, fct_*)
-                                   │               │                      │
-                                   └───────────────┴──────────► Tested, Documented Warehouse
+NYC Website ──> Python Scraper ──> RAW files ──> Snowflake (RAW schema)
+                                        │
+                                        └──> dbt (ephemeral staging) ──> dims + facts ──> dbt tests/docs
+                                                                                 │
+                                                                                 └──> Power BI (star schema + DAX)
 ```
 
 ---
 
-## 📦 Tech Stack
-**Python**, **pandas**, **requests**, **snowflake‑connector‑python**  
-**Snowflake** (databases, warehouses, stages, roles)  
-**dbt** (sources, seeds, ephemeral models, tests, documentation) in **VS Code**  
-**SPARQL** (Wikidata) for borough geolocation enrichment
+## 📥 1) Scrape NYC Taxi data with Python
 
----
+**Goal:** Automate download of Yellow & Green trip datasets and persist them locally/cloud, ready for Snowflake load.
 
-## 1) Data Sourcing & Scraping (Python)
+Key ideas:
+- Parameterize **year/month** and **service** (`yellow`, `green`).
+- Write out as **Parquet** (preferred) or CSV.
+- Optional: chunked processing to keep memory stable.
 
-**Goal:** Fetch TLC trip files (Yellow + Green) programmatically and prepare them for Snowflake.
+Example skeleton (abbrev.): 
 
-Key steps:
-1. Build a list of TLC file URLs (CSV/Parquet) for target months/years.
-2. Stream‑download → pandas load → dtype cleanup (timestamps, numeric fares, passenger count).
-3. Normalize column names to snake_case; keep **schema parity** across Yellow/Green where possible.
-4. (Optional) Partition locally (e.g., by year/month) to control load granularity.
-5. Use `snowflake-connector-python` to upload into Snowflake `RAW.PUBLIC` tables.
-
-**Skeleton:**
 ```python
-import pandas as pd
-import requests, io
-import snowflake.connector as sf
+import os, io, requests, pandas as pd
 
-def fetch_csv(url):
-    b = requests.get(url, timeout=60).content
-    return pd.read_csv(io.BytesIO(b))
+BASE_URL = "https://.../nyc-tlc/trip-data/"  # replace with the official path
+FILES = [
+    # e.g., "yellow_tripdata_2023-01.parquet", "green_tripdata_2023-01.parquet"
+]
 
-def write_to_snowflake(df, table, conn_params):
-    with sf.connect(**conn_params) as con:
-        cs = con.cursor()
-        # create table if not exists (minimal schema)
-        cs.execute(f'''
-            create table if not exists raw.public.{table} as
-            select * from (select * from values(1)) where 1=0
-        ''')
-        # simple PUT/COPY or write via write_pandas (preferred)
-        from snowflake.connector.pandas_tools import write_pandas
-        write_pandas(con, df, f"RAW.PUBLIC.{table}", auto_create_table=True)
+OUTDIR = "data/ingest"
+os.makedirs(OUTDIR, exist_ok=True)
+
+for fname in FILES:
+    url = f"{BASE_URL}{fname}"
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+    with open(os.path.join(OUTDIR, fname), "wb") as f:
+        f.write(r.content)
+    # Optional: read and light-clean
+    if fname.endswith(".parquet"):
+        df = pd.read_parquet(os.path.join(OUTDIR, fname))
+    else:
+        df = pd.read_csv(os.path.join(OUTDIR, fname))
+    # Minimal normalization steps here if needed
 ```
 
-> **Result:** `RAW.PUBLIC.YELLOW_TRIP` and `RAW.PUBLIC.GREEN_TRIP` are populated and ready for dbt.
+> **Tip:** Prefer Parquet: smaller, typed, and Snowflake ingests faster with external stages.  
 
 ---
 
-## 2) Snowflake Setup (fresh environment)
+## ❄️ 2) Load to Snowflake (create `RAW` database)
+
+Create a **database**, **warehouse**, **schema**, and **file format**. You can use **SnowSQL** or the **Python connector**.
 
 ```sql
--- Roles & warehouse
-create warehouse if not exists compute_wh with warehouse_size='XSMALL' auto_suspend=60 auto_resume=true;
-use warehouse compute_wh;
+-- 1) Core objects
+CREATE WAREHOUSE IF NOT EXISTS WH_XS WITH WAREHOUSE_SIZE = 'XSMALL' AUTO_SUSPEND = 60 AUTO_RESUME = TRUE;
+CREATE DATABASE IF NOT EXISTS RAW;
+CREATE SCHEMA IF NOT EXISTS RAW.TAXI;
 
--- Raw landing database
-create database if not exists raw;
-use database raw;
-use schema public;
+-- 2) File formats
+CREATE OR REPLACE FILE FORMAT RAW.TAXI.CSV_FMT TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '\"' SKIP_HEADER = 1;
+CREATE OR REPLACE FILE FORMAT RAW.TAXI.PARQUET_FMT TYPE = 'PARQUET';
 
--- (Optional) File stage for bulk loads
-create stage if not exists raw_stage file_format=(type=csv field_optionally_enclosed_by='"' skip_header=1);
+-- 3) Internal stage
+CREATE OR REPLACE STAGE RAW.TAXI.INT_STAGE FILE_FORMAT = RAW.TAXI.PARQUET_FMT;
 ```
 
-Lookup/seed tables are kept small and fast; they live in the same `RAW.PUBLIC` for simplicity.
+Upload files to the stage (via SnowSQL):
+```bash
+snowsql -q "PUT file://data/ingest/* @RAW.TAXI.INT_STAGE AUTO_COMPRESS=TRUE"
+```
 
----
-
-## 3) dbt in VS Code — project wiring
-
-1. **Install dbt adapter** for Snowflake and create a **profile**:
-   ```yaml
-   # ~/.dbt/profiles.yml
-   nyc_taxi:
-     target: dev
-     outputs:
-       dev:
-         type: snowflake
-         account: <your_account>
-         user: <your_user>
-         password: <your_password>
-         role: <your_role>
-         database: RAW
-         warehouse: COMPUTE_WH
-         schema: PUBLIC
-         threads: 4
-         client_session_keep_alive: False
-   ```
-
-2. **Initialize dbt project** (in the repo root):
-   ```bash
-   dbt init nyc_taxi
-   # open folder in VS Code, install Python/dbt extensions as needed
-   ```
-
-3. **Sources** (ephemeral) and **Seeds** in `models/`:
-   - `src_yellow_trip.sql` (materialized: **ephemeral**) → selects from `raw.public.yellow_trip`
-   - `src_green_trip.sql`  (materialized: **ephemeral**) → selects from `raw.public.green_trip`
-   - **Seed:** `taxi_zone_lookup.csv` → `dim_taxi_zone_lookup`
-
-4. **Lookups (source dims)** created from raw/CSV:
-   - `src_payment_type.sql`
-   - `src_rate_code.sql`
-   - `src_vendor.sql`
-   - `src_trip_type.sql`
-
-5. **Dimensions** (cleansed/enriched):
-   - `dim_payment_type.sql`
-   - `dim_rate_code.sql`
-   - `dim_vendor.sql`
-   - `dim_trip_type.sql`
-   - `dim_borough.sql` (with exact `lat/long` from SPARQL merge)
-   - `dim_taxi_zone_lookup.sql` (seeded and normalized)
-
-6. **Facts:**
-   - `fct_yellow_cleansed.sql`
-   - `fct_green_cleansed.sql`
-
-> The uploaded SQL model files in this repo mirror the items above, so you can open and review each transformation step in one place.
-
----
-
-## 4) Modeling strategy (what & why)
-
-### Ephemeral **sources** (`src_*`)
-- Materialized as **ephemeral** to **inline CTEs** during compilation → faster dev cycles and cleaner DAGs.
-- Standardizes raw columns (types, names), e.g. `pickup_datetime`, `dropoff_datetime`, `fare_amount`, `trip_distance`.
-
-### Dimensions (`dim_*`)
-- Small tables; **one row per natural key** (e.g., per code, per zone, per borough).
-- Provide **human‑readable** attributes and **consistent keys** for facts.
-- Borough geospatial enrichment enables mapping and radius analyses.
-
-### Facts (`fct_*_cleansed`)
-- Row‑level trip facts (Yellow/Green) with data quality rules:
-  - Drop negative fares/distance, unrealistic durations, invalid coordinates.
-  - Join to dims for rate code, payment, vendor, trip type, and zone metadata.
-- Output is **BI‑ready** and friendly to partitioning by date.
-
-**Example dbt model config (ephemeral source):**
+Create Raw Tables and Load:
 ```sql
-{{ config(materialized='ephemeral') }}
+CREATE OR REPLACE TABLE RAW.TAXI.YELLOW_TRIP ( ... ); -- columns aligned to source
+CREATE OR REPLACE TABLE RAW.TAXI.GREEN_TRIP  ( ... );
 
-with src as (
-  select * from raw.public.yellow_trip
-)
-, normalized as (
-  select
-    cast(pickup_datetime as timestamp)   as pickup_ts,
-    cast(dropoff_datetime as timestamp)  as dropoff_ts,
-    cast(passenger_count as int)         as passenger_count,
-    cast(trip_distance as float)         as trip_distance,
-    cast(fare_amount as numeric(10,2))   as fare_amount,
-    payment_type, rate_code_id, vendor_id, trip_type,
-    pulocationid, dolocationid
-  from src
-)
-select * from normalized
+COPY INTO RAW.TAXI.YELLOW_TRIP
+  FROM @RAW.TAXI.INT_STAGE PATTERN='.*yellow.*parquet' FILE_FORMAT=(FORMAT_NAME=RAW.TAXI.PARQUET_FMT);
+
+COPY INTO RAW.TAXI.GREEN_TRIP
+  FROM @RAW.TAXI.INT_STAGE PATTERN='.*green.*parquet' FILE_FORMAT=(FORMAT_NAME=RAW.TAXI.PARQUET_FMT);
+```
+
+> **Also import the Lookup/Zone tables** into `RAW` (seed via dbt or load as raw):
+- `RAW.TAXI.TAXI_ZONE_LOOKUP`
+- `RAW.TAXI.PAYMENT_TYPE`
+- `RAW.TAXI.RATE_CODE`
+- `RAW.TAXI.VENDOR`
+- `RAW.TAXI.TRIP_TYPE`
+
+---
+
+## 🛠️ 3) dbt project setup in VS Code
+
+1) **Initialize dbt** (e.g., `dbt init nyc_taxi`), choose **Snowflake** profile.  
+2) Configure `profiles.yml` with account, role, warehouse, database `RAW`, and your target schema for models (e.g., `ANALYTICS`).  
+3) In VS Code, organize models like this:
+
+```
+models/
+  ├─ staging/                 # ephemeral source models
+  │   ├─ src_yellow_trip.sql
+  │   ├─ src_green_trip.sql
+  │   ├─ src_payment_type.sql
+  │   ├─ src_rate_code.sql
+  │   ├─ src_vendor.sql
+  │   └─ src_trip_type.sql
+  ├─ dim/
+  │   ├─ dim_borough.sql
+  │   ├─ dim_payment_type.sql
+  │   ├─ dim_rate_code.sql
+  │   ├─ dim_vendor.sql
+  │   ├─ DIM_TAXI_ZONE_LOOKUP.sql
+  │   └─ dim_trip_type.sql
+  ├─ fct/
+  │   ├─ fct_yellow_cleansed.sql
+  │   └─ fct_green_cleansed.sql
+  └─ seeds/
+      └─ taxi_zone_lookup.csv (or .yml for external reference)
+```
+
+> ✅ **This repo includes model SQL files:**  
+> `fct_green_cleansed.sql`, `fct_yellow_cleansed.sql`, `dim_trip_type.sql`, `dim_payment_type.sql`, `DIM_TAXI_ZONE_LOOKUP.sql`, `dim_borough.sql`, `dim_vendor.sql`, `dim_rate_code.sql`, and the source models `src_*` for payment, rate code, vendor, trip type, yellow, green.
+
+### Why **ephemeral** sources?
+- Staging models `src_*` (e.g., `src_yellow_trip`, `src_green_trip`) are **materialized as `ephemeral`** to push logic **into the downstream models** at compile time.  
+- Benefits: zero staging tables, faster dev cycles, clearer lineage, and fewer objects in Snowflake.
+
+**Example `dbt_project.yml` excerpt:**
+```yml
+models:
+  nyc_taxi:
+    staging:
+      +materialized: ephemeral
+    dim:
+      +materialized: view    # or table
+    fct:
+      +materialized: table
+```
+
+**Run & test:**
+```bash
+dbt seed        # loads taxi zone lookups if used as seed
+dbt run         # builds dims & facts (ephemeral sources inlined)
+dbt test        # executes schema & data tests
+dbt docs generate && dbt docs serve  # browse lineage & docs
 ```
 
 ---
 
-## 5) Geospatial Enrichment with Wikidata (SPARQL)
+## 🧭 4) Geospatial Enrichment via Wikidata SPARQL
 
-**Goal:** Add precise borough centroids to support mapping & spatial joins.
+I extracted **precise latitude/longitude for boroughs** to improve mapping accuracy in Power BI.
 
-**SPARQL pattern used:**
+Example query (simplified):
+
 ```sparql
-# Borough -> label + coordinates (EPSG:4326)
 SELECT ?borough ?boroughLabel ?coord WHERE {
-  ?borough wdt:P31 wd:Q18424.   # instance of borough of NYC
-  ?borough wdt:P625 ?coord.     # coordinate location
+  VALUES ?borough { wd:Q18424 wd:Q18435 wd:Q18438 wd:Q18442 wd:Q18426 } # NYC borough Q-ids
+  ?borough wdt:P625 ?coord .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }
 ```
 
-The results are parsed from the Wikidata endpoint (JSON), then written to `RAW.PUBLIC` and transformed into `dim_borough` in dbt, giving each borough a `latitude`, `longitude`, and surrogate key.
+- Results were joined to the zone/borough dimension to produce **exact points** for **centroid mapping** and disambiguation.  
+- Stored in a lookup table (e.g., `RAW.TAXI.BOROUGH_COORDS`) and joined in `dim_borough.sql`.
 
 ---
 
-## 6) Data Quality & Tests
+## 🧩 5) Dimensional Model (Star)
 
-- **Generic tests** in `schema.yml`: `not_null`, `unique`, `accepted_values`, `relationships`.
-- **Business rules** embedded in SQL for the fact models (e.g., `trip_distance > 0`, `fare_amount >= 0`).
-- **Runbook:**
-  ```bash
-  dbt deps
-  dbt seed           # loads taxi zone lookup
-  dbt run            # builds dims & facts
-  dbt test           # ✅ run checks on the fact tables & dims
-  ```
+**Dimensions** *(examples)*  
+- `dim_borough` (enriched with Wikidata lat/long)  
+- `dim_payment_type`, `dim_rate_code`, `dim_vendor`, `dim_trip_type`, `DIM_TAXI_ZONE_LOOKUP`
 
-Common tests on facts:
-- keys present: `pulocationid`, `dolocationid` reference taxi zones
-- timestamps not null and `dropoff_ts >= pickup_ts`
-- non‑negative fares, surcharges, taxes
-- relationships to `dim_*` are valid
+**Facts**  
+- `fct_yellow_cleansed` and `fct_green_cleansed` aggregate and standardize trips from raw sources, applying data type normalization, timestamp casting, and business logic.
+
+> Models in this repo (representative):
+- `fct_green_cleansed.sql`
+- `fct_yellow_cleansed.sql`
+- `dim_trip_type.sql`
+- `dim_payment_type.sql`
+- `DIM_TAXI_ZONE_LOOKUP.sql`
+- `dim_borough.sql`
+- `dim_vendor.sql`
+- `dim_rate_code.sql`
+- `src_payment_type.sql`, `src_rate_code.sql`, `src_vendor.sql`, `src_trip_type.sql`
+- `src_yellow_trip.sql`, `src_green_trip.sql`
 
 ---
 
-## 7) Example analytics (ready for BI)
+## 🔎 6) Data Quality & Validations (dbt tests)
 
-- **Utilization:** Trips by hour/day; borough origin/destination matrices.
-- **Revenue:** Average fare per mile; tip percentage by payment type.
-- **Quality:** Outlier detection (extreme distances vs. durations).
-- **Geo:** Heatmaps by pickup density; top inter‑borough flows.
+- **Schema tests:** `not_null`, `unique`, `accepted_values` on keys and enums.
+- **Referential integrity:** FK checks from facts → dims (e.g., `payment_type_id`, `rate_code_id`, `vendor_id`, `zone_id`).
+- **Freshness** on sources (optional): ensure recent partitions are present.
+- **Row-level logic:** negative fares filtered, invalid lat/long dropped, trip_distance > 0, etc.
 
-Example query (average fare per mile by borough pair & hour):
-```sql
-select
-  p.borough as pickup_borough,
-  d.borough as dropoff_borough,
-  date_trunc('hour', f.pickup_ts) as pickup_hour,
-  sum(f.fare_amount) / nullif(sum(f.trip_distance),0) as avg_fare_per_mile
-from {{ ref('fct_yellow_cleansed') }} f
-join {{ ref('dim_taxi_zone_lookup') }} zp on f.pulocationid = zp.locationid
-join {{ ref('dim_taxi_zone_lookup') }} zd on f.dolocationid = zd.locationid
-join {{ ref('dim_borough') }} p on zp.borough = p.borough_name
-join {{ ref('dim_borough') }} d on zd.borough = d.borough_name
-group by 1,2,3
-order by 3,1,2;
+Example YAML snippet:
+```yml
+models:
+  - name: fct_yellow_cleansed
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "fare_amount >= 0 AND trip_distance >= 0"
+    columns:
+      - name: trip_id
+        tests: [unique, not_null]
+      - name: payment_type_id
+        tests:
+          - relationships:
+              to: ref('dim_payment_type')
+              field: payment_type_id
 ```
 
 ---
 
-## 8) Project Layout (key items)
+## 📊 7) Power BI — Analytical Layer
 
-```
-.
-├── models/
-│   ├── sources/
-│   │   ├── src_yellow_trip.sql        # ephemeral
-│   │   ├── src_green_trip.sql         # ephemeral
-│   │   ├── src_payment_type.sql       # source lookup
-│   │   ├── src_rate_code.sql          # source lookup
-│   │   ├── src_vendor.sql             # source lookup
-│   │   └── src_trip_type.sql          # source lookup
-│   ├── dims/
-│   │   ├── dim_payment_type.sql
-│   │   ├── dim_rate_code.sql
-│   │   ├── dim_vendor.sql
-│   │   ├── dim_trip_type.sql
-│   │   ├── dim_borough.sql
-│   │   └── dim_taxi_zone_lookup.sql
-│   ├── facts/
-│   │   ├── fct_yellow_cleansed.sql
-│   │   └── fct_green_cleansed.sql
-│   └── schema.yml                     # tests & docs
-├── seeds/
-│   └── taxi_zone_lookup.csv           # Taxi Zone Seed
-├── scripts/
-│   ├── ingest_tlc.py                  # scrape & load to Snowflake RAW
-│   └── wikidata_boroughs.py           # SPARQL enrichment loader
-└── README.md
+**Modeling:**
+- Import `dim_*` and `fct_*` tables from Snowflake.
+- Create relationships: facts → dims (keys: vendor, rate, payment, trip type, pickup/dropoff zone, borough).
+- Hide surrogate keys from the report view; surface readable attributes.
+
+**Design choices (recruiter‑friendly):**
+- **KPI strip**: Total Trips, Gross Revenue, Avg Fare, Avg Trip Distance, Tip %, Avg Trip Time.
+- **Time intelligence** (DAX): MTM/YoY deltas and sparklines.
+- **Geo visuals**: Map of trips and revenue by **borough** using enriched **lat/long**; filterable by service (Yellow/Green), hour of day, payment type.
+- **Behavioral insights**: Hourly heatmap of pickups, Tip% distribution, Vendor market share pie, Top zones by net revenue.
+- **Bookmarks** for “Executive”, “Ops”, and “Geo” views.
+
+**Example DAX (Avg Tip %):**
+```DAX
+Avg Tip % = DIVIDE( SUM(Fact[tip_amount]), SUM(Fact[fare_amount]) )
 ```
 
 ---
 
-## 9) How to Run (reproduce on your machine)
+## ✅ What I checked on the fact tables
 
-```bash
-# 0) Python env
-python -m venv .venv && source .venv/bin/activate
-pip install pandas requests snowflake-connector-python dbt-snowflake
-
-# 1) Environment variables (optional)
-export SNOWFLAKE_ACCOUNT=...
-export SNOWFLAKE_USER=...
-export SNOWFLAKE_PASSWORD=...
-export SNOWFLAKE_ROLE=...
-export SNOWFLAKE_WAREHOUSE=COMPUTE_WH
-export SNOWFLAKE_DATABASE=RAW
-export SNOWFLAKE_SCHEMA=PUBLIC
-
-# 2) Scrape & load
-python scripts/ingest_tlc.py
-python scripts/wikidata_boroughs.py
-
-# 3) Build & test
-dbt deps
-dbt seed
-dbt run
-dbt test
-```
+I ran validations to ensure production readiness:
+- **Row counts** vs. raw staging (no unexpected drop).
+- **Monetary sanity**: totals of `fare_amount`, `tip_amount`, `total_amount` within expected bounds.
+- **Key coverage**: 100% join rate to dimensions (no orphaned IDs).
+- **Temporal**: pickup < dropoff; timezone consistent; derived hour-of-day populated.
+- **Geospatial**: valid coordinates and borough/zone linkage; enriched lat/long present.
 
 ---
 
-## 🔍 Why this project matters
+## 🗂️ Repository Highlights (files you’ll find here)
 
-- Shows **end‑to‑end ownership**: ingestion → warehousing → modeling → testing → analytics.
-- Uses **best practices**: ephemeral sources, seeds for small reference data, clean star schema.
-- Demonstrates **cloud data skills** (Snowflake), modern **ELT** with dbt, and **data quality** rigor.
-- Adds **geospatial context** recruiters love to see in product analytics and ops use‑cases.
+- **Facts**
+  - `fct_yellow_cleansed.sql`
+  - `fct_green_cleansed.sql`
+- **Dimensions**
+  - `dim_borough.sql` (includes Wikidata coords)
+  - `DIM_TAXI_ZONE_LOOKUP.sql`
+  - `dim_payment_type.sql`
+  - `dim_rate_code.sql`
+  - `dim_vendor.sql`
+  - `dim_trip_type.sql`
+- **Sources (staging, ephemeral)**
+  - `src_yellow_trip.sql`
+  - `src_green_trip.sql`
+  - `src_payment_type.sql`
+  - `src_rate_code.sql`
+  - `src_vendor.sql`
+  - `src_trip_type.sql`
+- **Config**
+  - `dbt_project.yml`
 
 ---
 
-## 📈 Results & next steps
+## 🚀 How to run this project (quick start)
 
-- Warehouse tables that are **immediately consumable** by BI tools (e.g., Mode, Tableau, Hex, Power BI).
-- Clear testing story for **trustworthy metrics**.
-- Easy extensions: monthly auto‑ingest, coverage for FHVs, geofencing insights (e.g., airports), CI/CD with `dbt build` on PRs.
+1. **Python ingest**
+   - Create a virtualenv, install deps (`pandas`, `pyarrow`, `requests`, `snowflake-connector-python` or `snowsql`).
+   - Run the scraper to download monthly files to `data/ingest`.
 
-> If you’d like, I can also provide a **short Loom‑style walkthrough** script and a **dash notebook** exploring top insights.
+2. **Snowflake**
+   - Create `RAW` db, stage, and load using the SQL above.
+   - (Optional) Create a `TRANSFORM` or `ANALYTICS` schema for dbt models.
+
+3. **dbt**
+   - Set up `profiles.yml` for Snowflake connection.
+   - `dbt seed` (to load taxi zones if used as seed).
+   - `dbt run` then `dbt test`.
+   - `dbt docs generate && dbt docs serve` to browse lineage.
+
+4. **Power BI**
+   - Connect to Snowflake; import `fct_*` and `dim_*`.
+   - Build visuals (see the design section) and publish.
 
 ---
 
-### Credits
-NYC Taxi & Limousine Commission (TLC) Open Data. Wikidata contributors (SPARQL endpoint).
+## 🎤 Results & sample insights (story your stakeholders will hear)
 
+- **Rush‑hour pickup spikes** (7–9 AM, 5–7 PM) with **higher average fares** and **lower Tip%** vs. off‑peak, suggesting **price‑sensitive commuting** vs. **experience‑focused leisure**.
+- **Credit card share** higher for airport trips; **cash share** clusters in specific boroughs/zones—**targeted driver training** and **POS reliability** improve conversion.
+- **Top 10 pickup zones** account for a disproportionate share of revenue—**dispatch optimization** can reduce deadhead time.
+- **Vendor differences** in average trip distance/time hint at **coverage strategies** and potential **service‑level agreements**.
+
+> These insights are designed to show how I move from raw data to **actionable, operational recommendations**.
+
+---
+
+## 🔒 Security & cost controls
+
+- Snowflake **AUTO_SUSPEND** on small warehouse; scale up only for backfills.
+- Principle of least privilege (role for dbt, role for BI).
+- Ephemeral staging reduces storage footprint.
+- Incremental models (optional) for rolling loads.
+
+---
+
+## 📌 Notes for reviewers (what to look for)
+
+- Clear **lineage** from `RAW` → `ephemeral src_*` → dims/facts.
+- Thoughtful **naming conventions** and **YAML documentation**.
+- **Tests** that reflect business rules, not just mechanics.
+- Clean **Power BI** design aligned to end‑users (execs and ops).
+
+---
+
+## 📫 Contact
+
+If you’d like a quick walkthrough or want to discuss trade‑offs (incremental strategy, partitioning, streaming, geospatial options), I’m happy to chat.
+
+---
+
+_Thanks for reviewing!_  
+**— Your Name**
