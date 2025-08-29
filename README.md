@@ -32,7 +32,7 @@ flowchart LR
 
   subgraph SF["Snowflake"]
     C[RAW DB / TAXI schema]
-    S[INT_STAGE<br/>(PARQUET_FMT)]
+    S[INT_STAGE<br/> PARQUET_FMT]
     RY[RAW.YELLOW_TAXI_TRIP (VARIANT)]
     RG[RAW.GREEN_TAXI_TRIP (VARIANT)]
   end
