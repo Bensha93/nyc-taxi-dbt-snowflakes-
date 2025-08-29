@@ -21,59 +21,70 @@
 ### High‑level flow
 ```mermaid
 flowchart LR
-  subgraph Web["NYC Open Data (TLC Trip Data)"]
-    A[Monthly Yellow/Green files Parquet/CSV]
+ subgraph Web["NYC Open Data (TLC Trip Data)"]
+        A["Monthly Yellow/Green files Parquet/CSV"]
+        n6["This is sample label"]
   end
-
-  subgraph Py["Python Ingestion"]
-    B[Parameterized downloader<br/>requests + pandas/pyarrow]
-    B2[Local/Cloud landing folder]
+ subgraph Py["Python Ingestion"]
+        B["Parameterized downloader<br>requests + pandas/pyarrow"]
+        B2["Local/Cloud landing folder"]
+        n2["This is sample label"]
   end
-
-  subgraph SF["Snowflake"]
-    C[RAW DB / TAXI schema]
-    S[INT_STAGE<br/> PARQUET_FMT]
-    RY[RAW.YELLOW_TAXI_TRIP VARIANT]
-    RG[RAW.GREEN_TAXI_TRIP VARIANT]
+ subgraph SF["Snowflake"]
+        C["RAW DB / TAXI schema"]
+        S["INT_STAGE<br> PARQUET_FMT"]
+        RY["RAW.YELLOW_TAXI_TRIP VARIANT"]
+        RG["RAW.GREEN_TAXI_TRIP VARIANT"]
+        n1["This is sample label"]
   end
-
-  subgraph DBT["dbt (VS Code)"]
-    E1[Ephemeral src_yellow_trip]
-    E2[Ephemeral src_green_trip]
-    L1[Seeds: src_vendor, src_payment_type,<br/>src_rate_code, src_trip_type]
-    D1[DIM_VENDOR]
-    D2[DIM_PAYMENT_TYPE]
-    D3[DIM_RATE_CODE]
-    D4[DIM_TRIP_TYPE]
-    DZ[DIM_TAXI_ZONE_LOOKUP]
-    DBORO[DIM_BOROUGH - with Wikidata coords]
-    FY[FCT_YELLOW_CLEANSED - incremental merge]
-    FG[FCT_GREEN_CLEANSED - incremental merge]
+ subgraph DBT["dbt (VS Code)"]
+        E1["Ephemeral src_yellow_trip"]
+        E2["Ephemeral src_green_trip"]
+        L1["Seeds: src_vendor, src_payment_type,<br>src_rate_code, src_trip_type"]
+        D1["DIM_VENDOR"]
+        D2["DIM_PAYMENT_TYPE"]
+        D3["DIM_RATE_CODE"]
+        D4["DIM_TRIP_TYPE"]
+        DZ["DIM_TAXI_ZONE_LOOKUP"]
+        DBORO["DIM_BOROUGH - with Wikidata coords"]
+        FY["FCT_YELLOW_CLEANSED - incremental merge"]
+        FG["FCT_GREEN_CLEANSED - incremental merge"]
+        n3["This is sample label"]
   end
-
-  subgraph GEO["Wikidata"]
-    WQ[SPARQL query → Borough coords]
+ subgraph GEO["Wikidata"]
+        WQ["SPARQL query → Borough coords"]
+        n5["This is sample label"]
   end
-
-  subgraph BI["Power BI"]
-    PB[Star model + DAX + pages]
+ subgraph BI["Power BI"]
+        PB["Star model + DAX + pages"]
+        n4["This is sample label"]
   end
+    A --> B
+    B --> B2
+    B2 --> S
+    S -- PUT/COPY INTO --> RY & RG
+    WQ --> DBORO
+    RY --> E1
+    E1 --> FY
+    RG --> E2
+    E2 --> FG
+    L1 --> D1 & D2 & D3 & D4
+    D1 --> FY & FG
+    D2 --> FY & FG
+    D3 --> FY & FG
+    D4 --> FG
+    DZ --> FY & FG
+    DBORO --> DZ
+    FY --> PB
+    FG --> PB
+    n1 --> SF
 
-  A --> B --> B2 --> S
-  S -->|PUT/COPY INTO| RY
-  S -->|PUT/COPY INTO| RG
-  WQ --> DBORO
-  RY --> E1 --> FY
-  RG --> E2 --> FG
-  L1 --> D1 & D2 & D3 & D4
-  %% Trip Type connects ONLY to Green
-  D1 & D2 & D3 --> FY
-  D1 & D2 & D3 & D4 --> FG
-  DZ --> FY
-  DZ --> FG
-  DBORO --> DZ
-  FY --> PB
-  FG --> PB
+    n6@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
+    n2@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
+    n1@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
+    n3@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
+    n5@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
+    n4@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b", constraint: "on"}
 ```
 
 ### Star schema (analytical model)
