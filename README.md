@@ -33,8 +33,8 @@ flowchart LR
   subgraph SF["Snowflake"]
     C[RAW DB / TAXI schema]
     S[INT_STAGE<br/> PARQUET_FMT]
-    RY[RAW.YELLOW_TAXI_TRIP (VARIANT)]
-    RG[RAW.GREEN_TAXI_TRIP (VARIANT)]
+    RY[RAW.YELLOW_TAXI_TRIP VARIANT]
+    RG[RAW.GREEN_TAXI_TRIP VARIANT]
   end
 
   subgraph DBT["dbt (VS Code)"]
@@ -46,9 +46,9 @@ flowchart LR
     D3[DIM_RATE_CODE]
     D4[DIM_TRIP_TYPE]
     DZ[DIM_TAXI_ZONE_LOOKUP]
-    DBORO[DIM_BOROUGH (with Wikidata coords)]
-    FY[FCT_YELLOW_CLEANSED (incremental merge)]
-    FG[FCT_GREEN_CLEANSED (incremental merge)]
+    DBORO[DIM_BOROUGH - with Wikidata coords]
+    FY[FCT_YELLOW_CLEANSED - incremental merge]
+    FG[FCT_GREEN_CLEANSED - incremental merge]
   end
 
   subgraph GEO["Wikidata"]
@@ -173,7 +173,7 @@ sequenceDiagram
   Dev->>dbt: dbt run   (ephemeral src_* → DIM_* → FCT_*)
   Dev->>dbt: dbt test  (schema + custom checks)
   dbt-->>Dev: docs + artifacts
-  Dev->>BI: Refresh dataset from Snowflake; publish report
+  Dev->>BI: Refresh dataset from Snowflake publish report
 ```
 
 ---
