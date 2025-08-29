@@ -1,5 +1,5 @@
 
-# NYC Taxi Analytics Pipeline (NYC TLC → Snowflake → dbt → Power BI) - End-to-End Portfolio Project
+# NYC Taxi Analytics Pipeline (NYC TLC → Snowflake → dbt → Power BI) 
 
 > **Elevator pitch:** I built an *end‑to‑end analytics pipeline* that scrapes NYC Taxi data, lands it in **Snowflake**, transforms it with **dbt** (including data quality gates, incremental facts, and seeded dimensions), enriches boroughs with **Wikidata (SPARQL)** coordinates, and serves an **executive‑grade Power BI** report. The project demonstrates practical data engineering, analytics engineering, and BI delivery—ready for production.
 
@@ -289,7 +289,7 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Passenger & Trip Behavior** — Trip distance distribution, passenger count patterns, distance vs fare
   
-  ![Passenger & Trip Behavior](POWER BI/Passenger Trip.png)
+  ![Passenger & Trip Behavior](Passenger Trip.png)
 
 - **Operational Performance** — Congestion surcharge trend, vendor x payment insights, top tolls by zone
   
