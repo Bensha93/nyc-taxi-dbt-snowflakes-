@@ -19,74 +19,8 @@
 ## 🗺️ System Architecture
 
 ### High‑level flow
-```mermaid
-flowchart LR
- subgraph Web["NYC Open Data (TLC Trip Data)"]
-        A["Monthly Yellow/Green files Parquet/CSV"]
-        n6["This is sample label"]
-  end
- subgraph Py["Python Ingestion"]
-        B["Parameterized downloader<br>requests + pandas/pyarrow"]
-        B2["Local/Cloud landing folder"]
-        n8["Python"]
-  end
- subgraph SF["Snowflake"]
-        C["RAW DB / TAXI schema"]
-        S["INT_STAGE<br> PARQUET_FMT"]
-        RY["RAW.YELLOW_TAXI_TRIP VARIANT"]
-        RG["RAW.GREEN_TAXI_TRIP VARIANT"]
-        n7["snowflakes"]
-  end
- subgraph DBT["dbt (VS Code)"]
-        E1["Ephemeral src_yellow_trip"]
-        E2["Ephemeral src_green_trip"]
-        L1["Seeds: src_vendor, src_payment_type,<br>src_rate_code, src_trip_type"]
-        D1["DIM_VENDOR"]
-        D2["DIM_PAYMENT_TYPE"]
-        D3["DIM_RATE_CODE"]
-        D4["DIM_TRIP_TYPE"]
-        DZ["DIM_TAXI_ZONE_LOOKUP"]
-        DBORO["DIM_BOROUGH - with Wikidata coords"]
-        FY["FCT_YELLOW_CLEANSED - incremental merge"]
-        FG["FCT_GREEN_CLEANSED - incremental merge"]
-        n9["dbt"]
-  end
- subgraph GEO["Wikidata"]
-        WQ["SPARQL query → Borough coords"]
-        n11[" "]
-  end
- subgraph BI["Power BI"]
-        PB["Star model + DAX + pages"]
-        n10["Power BI"]
-  end
-    A --> B
-    B --> B2
-    B2 --> S
-    S -- PUT/COPY INTO --> RY & RG
-    WQ --> DBORO
-    RY --> E1
-    E1 --> FY
-    RG --> E2
-    E2 --> FG
-    L1 --> D1 & D2 & D3 & D4
-    D1 --> FY & FG
-    D2 --> FY & FG
-    D3 --> FY & FG
-    D4 --> FG
-    DZ --> FY & FG
-    DBORO --> DZ
-    FY --> PB
-    FG --> PB
 
-    n8@{ img: "https://cdn.simpleicons.org/python/3776AB", h: 200, w: 200, pos: "b"}
-    n7@{ img: "https://cdn.simpleicons.org/snowflake/29B5E8", h: 200, w: 200, pos: "b", constraint: "on"}
-    n9@{ img: "https://cdn.simpleicons.org/dbt/FF694B", h: 200, w: 200, pos: "b"}
-    n11@{ img: "https://www.wikidata.org/static/images/project-logos/wikidatawiki.png", h: 200, w: 200, pos: "b"}
-    n10@{ img: "https://upload.wikimedia.org/wikipedia/commons/c/cf/New_Power_BI_Logo.svg", h: 200, w: 200, pos: "b"}
-
-
-
-```
+![High‑level flow](NYC pipeline flow chart.png)
 
 ### Star schema (analytical model)
 ```mermaid
