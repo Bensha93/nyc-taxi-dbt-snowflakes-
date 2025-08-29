@@ -294,7 +294,7 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Executive Overview** — KPIs, YoY deltas, monthly trend
   
-  ![Executive Overview](Executive Overview.png)
+  ![Executive Overview](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/ad731c526631de9f561c61ccb88a957ea5ab01bd/Executive%20Overview.png)
 
 - **Geographic Insights** — Top pickup/dropoff zones + map (uses Wikidata coords)
   
@@ -302,15 +302,15 @@ ON UPPER(TRIM(t.borough)) = UPPER(TRIM(b.BOROUGH))
 
 - **Fare & Revenue Analysis** — Component breakdown, Avg fare/mile vs distance, fare distribution
   
-  ![Fare & Revenue Analysis](Fare & Revenue.png)
+  ![Fare & Revenue.png)](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/ad731c526631de9f561c61ccb88a957ea5ab01bd/Fare%20%26%20Revenue.png)
 
 - **Passenger & Trip Behavior** — Trip distance distribution, passenger count patterns, distance vs fare
   
-  ![Passenger & Trip Behavior](Passenger Trip.png)
+  ![Passenger & Trip Behavior](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/ad731c526631de9f561c61ccb88a957ea5ab01bd/Passenger%20Trip.png)
 
 - **Operational Performance** — Congestion surcharge trend, vendor x payment insights, top tolls by zone
   
-  ![Operational Performance](Operation Performance.png)
+  ![Operational Performance](https://github.com/Bensha93/nyc-taxi-dbt-snowflakes-/blob/ad731c526631de9f561c61ccb88a957ea5ab01bd/Operation%20Performance.png)
 
 ---
 
